@@ -80,6 +80,32 @@ const dict: Dict = {
     "zh-Hant": "演示：調用 claim() 發起真實鏈上交易（Sepolia 測試網）",
     en: "Demo: calls claim() as a real on-chain tx (Sepolia testnet)",
   },
+  // 捐贈頁 · USDT 真實測試代幣
+  usdtBalance: { "zh-Hant": "USDT 餘額", en: "USDT Balance" },
+  getTestUsdt: { "zh-Hant": "領取測試 USDT", en: "Get test USDT" },
+  usdtNoBalance: {
+    "zh-Hant": "錢包內暫無測試 USDT，請先點擊上方領取水龍頭",
+    en: "No test USDT in wallet yet — use the faucet above first",
+  },
+  // 領取收益頁 · 真實鏈上數據 / 演示模式
+  onchainBalance: { "zh-Hant": "鏈上真實餘額", en: "On-chain balance" },
+  demoMode: {
+    "zh-Hant": "演示模式 · 未接入真實合約（claim 仍真實上鏈）",
+    en: "Demo mode · no real contract wired (claim still settles on-chain)",
+  },
+  claimOnchain: {
+    "zh-Hant": "已接入真實合約：讀取鏈上 earnings() 並調用 claim()",
+    en: "Real contract wired: reads on-chain earnings() and calls claim()",
+  },
+  demoClaimable: { "zh-Hant": "演示可領取", en: "Demo claimable" },
+  // 頁腳
+  footerAudit: { "zh-Hant": "審計", en: "Audit" },
+  footerOpen: { "zh-Hant": "開源", en: "Open Source" },
+  footerKb: { "zh-Hant": "知識庫", en: "Docs" },
+  footerCopy: {
+    "zh-Hant": "Microverse Protocol © 2026 · 開發者獎金池常駐 · 歡迎查詢合約漏洞",
+    en: "Microverse Protocol © 2026 · Dev bounty pool live · bug bounties welcome",
+  },
 };
 
 type I18nValue = {

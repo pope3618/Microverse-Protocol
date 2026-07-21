@@ -2,18 +2,28 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Loader2, Coins } from "lucide-react";
+import { ExternalLink, Loader2, Coins, Wallet2 } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { useI18n } from "@/components/language-provider";
 import {
   useAccount,
+  useBalance,
   useConnect,
   useDisconnect,
+  useReadContract,
   useSendTransaction,
   useSwitchChain,
+  useWriteContract,
 } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { sepolia } from "wagmi/chains";
+import { formatEther } from "viem";
+import {
+  REWARDS_ADDRESS,
+  REWARDS_ABI,
+  SEPOLIA_ID,
+  etherscanTx,
+} from "@/lib/contracts";
 
 // 演示用「收益分发合约」地址（销毁地址占位）。仅复刻交互链路，请勿转入真实资金。
 const DEMO_CLAIM_CONTRACT = "0x000000000000000000000000000000000000dEaD";
@@ -21,7 +31,7 @@ const DEMO_CLAIM_CONTRACT = "0x000000000000000000000000000000000000dEaD";
 const CLAIM_SELECTOR = "0x4e71d92d";
 
 // 演示用「可领取收益」数值（真实项目应从合约读取）
-const CLAIMABLE = "0.0000";
+const DEMO_CLAIMABLE = "0.0500";
 
 export default function EarningsPage() {
   const { t } = useI18n();
@@ -30,9 +40,56 @@ export default function EarningsPage() {
   const { address, isConnected, chain } = useAccount();
   const { connect, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
-  const { sendTransaction, isPending: isClaiming, data: txHash, error: claimError } =
-    useSendTransaction();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
+
+  const [demoClaimable, setDemoClaimable] = useState(DEMO_CLAIMABLE);
+
+  // 真实链上余额（任何模式都展示，便于核对）
+  const { data: balanceData } = useBalance({
+    address,
+    chainId: SEPOLIA_ID,
+    query: { enabled: !!address },
+  });
+  const onchainBalance = balanceData ? formatEther(balanceData.value) : "0";
+
+  // 真实合约模式：读取 earnings(address) 可领取收益
+  const {
+    data: earningsData,
+    refetch: refetchEarnings,
+    isLoading: earningsLoading,
+  } = useReadContract({
+    address: REWARDS_ADDRESS ?? undefined,
+    abi: REWARDS_ABI,
+    functionName: "earnings",
+    args: address ? [address] : undefined,
+    chainId: SEPOLIA_ID,
+    query: { enabled: !!REWARDS_ADDRESS && !!address },
+  });
+  const isRealMode = !!REWARDS_ADDRESS;
+  const claimable = isRealMode
+    ? (earningsData != null
+        ? formatEther(earningsData as bigint)
+        : "0")
+    : demoClaimable;
+
+  const {
+    writeContract,
+    isPending: isClaimingContract,
+    data: contractTxHash,
+    error: contractError,
+    reset: resetContract,
+  } = useWriteContract();
+  const {
+    sendTransaction,
+    isPending: isClaimingTx,
+    data: txHash,
+    error: claimError,
+    reset: resetTx,
+  } = useSendTransaction();
+
+  const isClaiming = isClaimingContract || isClaimingTx;
+  const finalTxHash = contractTxHash ?? txHash;
+  const claimErrorFinal = contractError ?? claimError;
 
   useEffect(() => {
     setHasWallet(typeof window !== "undefined" && !!window.ethereum);
@@ -49,12 +106,27 @@ export default function EarningsPage() {
       return;
     }
     try {
-      // 调用收益合约的 claim() —— 发起真实的链上交易（无 value，仅 calldata）
-      sendTransaction({ to: DEMO_CLAIM_CONTRACT, data: CLAIM_SELECTOR });
+      if (isRealMode) {
+        // 真实合约：调用 claim()
+        writeContract({
+          address: REWARDS_ADDRESS as `0x${string}`,
+          abi: REWARDS_ABI,
+          functionName: "claim",
+          chainId: SEPOLIA_ID,
+        });
+      } else {
+        // 演示模式：发起真实链上交易（无 value，仅 calldata），随后本地清零可领取额
+        sendTransaction({ to: DEMO_CLAIM_CONTRACT, data: CLAIM_SELECTOR });
+      }
     } catch {
       /* 错误由 claimError 展示 */
     }
   };
+
+  // 演示模式：交易上链后本地将可领取额清零（仅前端状态）
+  useEffect(() => {
+    if (!isRealMode && finalTxHash) setDemoClaimable("0.0000");
+  }, [isRealMode, finalTxHash]);
 
   const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
 
@@ -70,12 +142,41 @@ export default function EarningsPage() {
 
       {/* 可领取收益 */}
       <GlassCard>
-        <p className="text-xs text-muted-foreground">{t("claimableLabel")}</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {isRealMode ? t("claimableLabel") : t("demoClaimable")}
+          </p>
+          {!isRealMode && (
+            <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400/90">
+              {t("demoMode")}
+            </span>
+          )}
+        </div>
         <div className="mt-1 flex items-end gap-2">
-          <span className="font-display text-3xl font-bold">{CLAIMABLE}</span>
+          <span className="font-display text-3xl font-bold">
+            {earningsLoading ? "…" : Number(claimable).toFixed(4)}
+          </span>
           <span className="pb-1 text-xs text-muted-foreground">ETH</span>
         </div>
-        <p className="mt-2 text-[11px] text-amber-400/90">{t("claimDemo")}</p>
+        {isRealMode ? (
+          <p className="mt-2 text-[11px] text-primary/80">{t("claimOnchain")}</p>
+        ) : (
+          <p className="mt-2 text-[11px] text-amber-400/90">{t("claimDemo")}</p>
+        )}
+      </GlassCard>
+
+      {/* 链上真实余额（所有模式都展示） */}
+      <GlassCard>
+        <div className="flex items-center gap-2">
+          <Wallet2 className="size-4 text-primary" />
+          <p className="text-xs text-muted-foreground">{t("onchainBalance")}</p>
+        </div>
+        <div className="mt-1 flex items-end gap-2">
+          <span className="font-display text-xl font-bold">
+            {Number(onchainBalance).toFixed(4)}
+          </span>
+          <span className="pb-1 text-xs text-muted-foreground">ETH</span>
+        </div>
       </GlassCard>
 
       {/* 未检测到钱包 */}
@@ -92,7 +193,7 @@ export default function EarningsPage() {
           <button
             onClick={() => connect({ connector: injected() })}
             disabled={isConnecting}
-            className="mt-3 inline-flex items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-60"
+            className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary px-4 py-2.5 text-xs font-semibold text-background disabled:opacity-60"
           >
             {isConnecting && <Loader2 className="size-3.5 animate-spin" />}
             {isConnecting ? t("connecting") : t("donateConnect")}
@@ -113,7 +214,7 @@ export default function EarningsPage() {
               <button
                 onClick={() => switchChain({ chainId: sepolia.id })}
                 disabled={isSwitching}
-                className="mt-3 inline-flex items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-60"
+                className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary px-4 py-2.5 text-xs font-semibold text-background disabled:opacity-60"
               >
                 {isSwitching && <Loader2 className="size-3.5 animate-spin" />}
                 {isSwitching ? t("switching") : t("switchBtn")}
@@ -122,36 +223,40 @@ export default function EarningsPage() {
           ) : (
             <button
               onClick={onClaim}
-              disabled={isClaiming}
-              className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-background disabled:opacity-60"
+              disabled={isClaiming || Number(claimable) <= 0}
+              className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary px-4 py-2.5 text-xs font-semibold text-background disabled:opacity-60"
             >
               {isClaiming && <Loader2 className="size-4 animate-spin" />}
               {isClaiming ? t("claiming") : t("claimNow")}
             </button>
           )}
 
-          {txHash && (
+          {finalTxHash && (
             <div className="mt-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2">
               <p className="text-xs text-primary">{t("claimSuccess")}</p>
               <a
-                href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                href={etherscanTx(finalTxHash)}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary underline"
               >
-                {txHash.slice(0, 10)}… <ExternalLink className="size-3" />
+                {finalTxHash.slice(0, 10)}… <ExternalLink className="size-3" />
               </a>
             </div>
           )}
 
-          {claimError && (
+          {claimErrorFinal && (
             <p className="mt-3 text-xs text-red-400">
-              {t("claimFail")}：{String(claimError.message).slice(0, 80)}
+              {t("claimFail")}：{String(claimErrorFinal.message).slice(0, 80)}
             </p>
           )}
 
           <button
-            onClick={() => disconnect()}
+            onClick={() => {
+              resetContract();
+              resetTx();
+              disconnect();
+            }}
             className="mt-3 text-[11px] text-muted-foreground underline"
           >
             {t("disconnect")}

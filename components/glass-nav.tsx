@@ -63,7 +63,7 @@ export function GlassNav() {
           {isConnected && address ? (
             <button
               onClick={() => disconnect()}
-              className="glass flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1.5 text-xs text-foreground/90 transition-colors hover:text-primary"
+              className="glass flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-2 text-xs text-foreground/90 transition-colors hover:text-primary"
               title={address}
             >
               <Wallet className="size-3.5 text-primary" />
@@ -73,7 +73,7 @@ export function GlassNav() {
             <button
               onClick={handleConnect}
               disabled={isPending}
-              className="glass flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1.5 text-xs text-foreground/90 transition-colors hover:text-primary disabled:opacity-60"
+              className="glass flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-2 text-xs text-foreground/90 transition-colors hover:text-primary disabled:opacity-60"
             >
               {isPending ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -86,7 +86,7 @@ export function GlassNav() {
 
           <button
             onClick={toggle}
-            className="glass flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1.5 text-xs text-foreground/90 transition-colors hover:text-primary"
+            className="glass flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-2 text-xs text-foreground/90 transition-colors hover:text-primary"
             aria-label="switch language"
           >
             <Languages className="size-3.5 text-primary" />

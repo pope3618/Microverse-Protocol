@@ -2,25 +2,29 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Copy, ExternalLink, Loader2 } from "lucide-react";
+import { Copy, ExternalLink, Loader2, Droplets } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { useI18n } from "@/components/language-provider";
 import {
   useAccount,
   useConnect,
   useDisconnect,
+  useReadContract,
   useSendTransaction,
   useSwitchChain,
   useWriteContract,
 } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { sepolia } from "wagmi/chains";
-import { erc20Abi, parseEther, parseUnits } from "viem";
+import { erc20Abi, formatUnits, parseEther, parseUnits } from "viem";
+import {
+  USDT_ADDRESS,
+  USDT_FAUCET_URL,
+  etherscanTx,
+} from "@/lib/contracts";
 
 // 演示用捐赠地址（公认的销毁地址）。本项目仅复刻交互链路，请勿转入真实资金。
 const DEMO_DONATE_ADDRESS = "0x000000000000000000000000000000000000dEaD";
-// 演示用 Sepolia 测试网 USDT 代币地址（demo placeholder，6 位小数）。
-const DEMO_USDT_ADDRESS = "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06";
 
 type Currency = "ETH" | "USDT";
 
@@ -54,6 +58,29 @@ export default function DonatePage() {
   const txHash = ethTxHash ?? usdtTxHash;
   const sendError = ethError ?? usdtError;
 
+  // USDT 真实测试代币：读取链上小数位与余额（仅选中 USDT 且已连接时查询）
+  const {
+    data: decimalsData,
+    isLoading: decimalsLoading,
+  } = useReadContract({
+    address: USDT_ADDRESS,
+    abi: erc20Abi,
+    functionName: "decimals",
+    chainId: sepolia.id,
+    query: { enabled: currency === "USDT" },
+  });
+  const tokenDecimals = (decimalsData as number | undefined) ?? 6;
+
+  const { data: balanceData } = useReadContract({
+    address: USDT_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: sepolia.id,
+    query: { enabled: currency === "USDT" && !!address },
+  });
+  const usdtBalance = balanceData ? formatUnits(balanceData, tokenDecimals) : "0";
+
   useEffect(() => {
     setHasWallet(typeof window !== "undefined" && !!window.ethereum);
   }, []);
@@ -83,12 +110,13 @@ export default function DonatePage() {
           value: parseEther(amount || "0"),
         });
       } else {
-        // USDT：ERC-20 transfer(address,uint256)，USDT 为 6 位小数
+        // USDT：ERC-20 transfer(address,uint256)，小数位动态读取
         writeContract({
-          address: DEMO_USDT_ADDRESS,
+          address: USDT_ADDRESS,
           abi: erc20Abi,
           functionName: "transfer",
-          args: [DEMO_DONATE_ADDRESS, parseUnits(amount || "0", 6)],
+          args: [DEMO_DONATE_ADDRESS, parseUnits(amount || "0", tokenDecimals)],
+          chainId: sepolia.id,
         });
       }
     } catch {
@@ -103,6 +131,7 @@ export default function DonatePage() {
   };
 
   const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
+  const insufficient = currency === "USDT" && Number(usdtBalance) < Number(amount || "0");
 
   return (
     <div className="flex flex-col gap-4">
@@ -140,7 +169,7 @@ export default function DonatePage() {
           <button
             onClick={() => connect({ connector: injected() })}
             disabled={isConnecting}
-            className="mt-3 inline-flex items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-60"
+            className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary px-4 py-2.5 text-xs font-semibold text-background disabled:opacity-60"
           >
             {isConnecting && <Loader2 className="size-3.5 animate-spin" />}
             {isConnecting ? t("connecting") : t("donateConnect")}
@@ -161,7 +190,7 @@ export default function DonatePage() {
               <button
                 onClick={() => switchChain({ chainId: sepolia.id })}
                 disabled={isSwitching}
-                className="mt-3 inline-flex items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-60"
+                className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary px-4 py-2.5 text-xs font-semibold text-background disabled:opacity-60"
               >
                 {isSwitching && <Loader2 className="size-3.5 animate-spin" />}
                 {isSwitching ? t("switching") : t("switchBtn")}
@@ -179,7 +208,7 @@ export default function DonatePage() {
                     key={c}
                     onClick={() => switchCurrency(c)}
                     className={
-                      "rounded-xl border px-3 py-2 text-xs font-semibold transition-colors " +
+                      "rounded-xl border px-3 py-2.5 text-xs font-semibold transition-colors " +
                       (currency === c
                         ? "border-primary bg-primary/15 text-primary"
                         : "border-white/10 bg-black/20 text-muted-foreground hover:border-white/25")
@@ -191,9 +220,27 @@ export default function DonatePage() {
               </div>
 
               {currency === "USDT" && (
-                <p className="mt-2 text-[11px] text-amber-400/90">
-                  {t("usdtNote")}
-                </p>
+                <div className="mt-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">{t("usdtBalance")}</span>
+                    <span className="text-primary">
+                      {decimalsLoading ? "…" : `${Number(usdtBalance).toFixed(4)} USDT`}
+                    </span>
+                  </div>
+                  <a
+                    href={USDT_FAUCET_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary/15 px-3 py-2 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/25"
+                  >
+                    <Droplets className="size-3.5" /> {t("getTestUsdt")}
+                  </a>
+                  {insufficient && (
+                    <p className="mt-2 text-[11px] text-amber-400/90">
+                      {t("usdtNoBalance")}
+                    </p>
+                  )}
+                </div>
               )}
 
               <label className="mt-3 block text-xs text-muted-foreground">
@@ -205,12 +252,12 @@ export default function DonatePage() {
                 step={currency === "ETH" ? "0.001" : "1"}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary"
               />
               <button
                 onClick={onDonate}
-                disabled={isSending}
-                className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-background disabled:opacity-60"
+                disabled={isSending || insufficient}
+                className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary px-4 py-2.5 text-xs font-semibold text-background disabled:opacity-60"
               >
                 {isSending && <Loader2 className="size-4 animate-spin" />}
                 {isSending ? t("donating") : `${t("donateNow")}（${currency}）`}
@@ -222,7 +269,7 @@ export default function DonatePage() {
             <div className="mt-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2">
               <p className="text-xs text-primary">{t("donateSuccess")}</p>
               <a
-                href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                href={etherscanTx(txHash)}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary underline"
