@@ -2,6 +2,8 @@
 
 Next.js 15 (App Router) + Turbopack + Tailwind CSS v4 + shadcn 风格 token + next/font + lucide + 轻量 i18n。
 
+**Live Demo:** https://microverse-protocol.vercel.app/（已部署至 Vercel，公网可访问）
+
 ## 技术栈
 - **Next.js 15** App Router，开发用 `--turbopack`
 - **React 19**
@@ -19,9 +21,9 @@ app/
   page.tsx          # 首页仪表盘（Hero/公告/链路口订单/等级收益/节点邀请）
   globals.css       # Tailwind v4 + @theme token + .glass
   icon.svg          # favicon
-  announcements|chains|donate|earnings|node|team/page.tsx  # 路由占位
+  announcements|chains|donate|earnings|node|team/page.tsx  # 路由页（donate 为完整钱包捐赠表单）
 components/
-  glass-nav.tsx     # sticky 玻璃顶栏 + 连接钱包(占位) + 语言切换
+  glass-nav.tsx     # sticky 玻璃顶栏 + 连接钱包(wagmi injected) + 语言切换
   site-footer.tsx   # 审计/开源/知识库 + 版权
   language-provider.tsx
   ui/glass-card.tsx
@@ -43,7 +45,7 @@ npm run start        # 默认 3000 端口
 - 反代与 HTTPS 配置见 `nginx.conf`（certbot 签发 Let's Encrypt 证书）。
 
 ## 下一步可扩展
-- **钱包**：把 `glass-nav.tsx` 里的 `connectWallet` 占位换成 `wagmi` + `viem` 的 `useConnect`。
+- **钱包**：已用 `wagmi` + `viem` 接入 `injected` 钱包（`glass-nav.tsx` / `lib/wagmi.ts`）；如需手机扫码可加 WalletConnect connector。
 - **合约数据**：用 `viem` 读取链上收益/节点状态，替换首页占位文案。
 - **i18n 完整化**：在 `language-provider.tsx` 的 `dict` 中补充全部业务文案。
 - **社区外链**：在 `site-footer.tsx` / 关于页接入 Telegram / X / Medium / DeBox / Linktree / Gamma。
