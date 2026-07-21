@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/* ===== Tailwind v4 主题 token（复刻 microvse.com 配色） ===== */
+@theme {
+  --color-background: #131b25;
+  --color-foreground: #e8edf2;
+  --color-primary: #c3ff01; /* 柠檬绿强调色 */
+  --color-muted-foreground: #8a97a6;
+  --color-card: #1b2530;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --radius: 1rem; /* 大圆角玻璃卡片 */
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-unbounded), ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+/* 玻璃拟态工具类（复刻 .glass） */
+.glass {
+  background-color: color-mix(in oklab, var(--color-background) 70%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* 让自托管字体变量在 Tailwind 工具类里可用 */
+:root {
+  --font-geist-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono", ui-monospace, monospace;
+  --font-unbounded: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+}
