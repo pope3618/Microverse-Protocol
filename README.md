@@ -1,6 +1,6 @@
 # Microverse Protocol — Clone Scaffold
 
-按 microvse.com 逆向分析复刻的可运行脚手架：Next.js 15 (App Router) + Turbopack + Tailwind CSS v4 + shadcn 风格 token + next/font + lucide + 轻量 i18n。
+Next.js 15 (App Router) + Turbopack + Tailwind CSS v4 + shadcn 风格 token + next/font + lucide + 轻量 i18n。
 
 ## 技术栈
 - **Next.js 15** App Router，开发用 `--turbopack`
