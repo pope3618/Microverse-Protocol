@@ -11,30 +11,60 @@ import {
   useDisconnect,
   useSendTransaction,
   useSwitchChain,
+  useWriteContract,
 } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { sepolia } from "wagmi/chains";
-import { parseEther } from "viem";
+import { erc20Abi, parseEther, parseUnits } from "viem";
 
 // 演示用捐赠地址（公认的销毁地址）。本项目仅复刻交互链路，请勿转入真实资金。
 const DEMO_DONATE_ADDRESS = "0x000000000000000000000000000000000000dEaD";
+// 演示用 Sepolia 测试网 USDT 代币地址（demo placeholder，6 位小数）。
+const DEMO_USDT_ADDRESS = "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06";
+
+type Currency = "ETH" | "USDT";
 
 export default function DonatePage() {
   const { t } = useI18n();
   const [amount, setAmount] = useState("0.001");
+  const [currency, setCurrency] = useState<Currency>("ETH");
   const [hasWallet, setHasWallet] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
 
   const { address, isConnected, chain } = useAccount();
   const { connect, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
-  const { sendTransaction, isPending: isSending, data: txHash, error: sendError } =
-    useSendTransaction();
+  const {
+    sendTransaction,
+    isPending: isSendingEth,
+    data: ethTxHash,
+    error: ethError,
+    reset: resetEth,
+  } = useSendTransaction();
+  const {
+    writeContract,
+    isPending: isSendingUsdt,
+    data: usdtTxHash,
+    error: usdtError,
+    reset: resetUsdt,
+  } = useWriteContract();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
+
+  const isSending = isSendingEth || isSendingUsdt;
+  const txHash = ethTxHash ?? usdtTxHash;
+  const sendError = ethError ?? usdtError;
 
   useEffect(() => {
     setHasWallet(typeof window !== "undefined" && !!window.ethereum);
   }, []);
+
+  const switchCurrency = (c: Currency) => {
+    setCurrency(c);
+    // 切换币种时清空上一次的交易结果/错误，避免混淆
+    resetEth();
+    resetUsdt();
+    setAmount(c === "ETH" ? "0.001" : "1");
+  };
 
   const onDonate = () => {
     if (!hasWallet) return;
@@ -47,10 +77,20 @@ export default function DonatePage() {
       return;
     }
     try {
-      sendTransaction({
-        to: DEMO_DONATE_ADDRESS,
-        value: parseEther(amount || "0"),
-      });
+      if (currency === "ETH") {
+        sendTransaction({
+          to: DEMO_DONATE_ADDRESS,
+          value: parseEther(amount || "0"),
+        });
+      } else {
+        // USDT：ERC-20 transfer(address,uint256)，USDT 为 6 位小数
+        writeContract({
+          address: DEMO_USDT_ADDRESS,
+          abi: erc20Abi,
+          functionName: "transfer",
+          args: [DEMO_DONATE_ADDRESS, parseUnits(amount || "0", 6)],
+        });
+      }
     } catch {
       /* 错误由 sendError 展示 */
     }
@@ -129,13 +169,40 @@ export default function DonatePage() {
             </div>
           ) : (
             <div className="mt-3">
+              {/* 币种切换 */}
               <label className="text-xs text-muted-foreground">
-                {t("amountLabel")}
+                {t("currencyLabel")}
+              </label>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                {(["ETH", "USDT"] as Currency[]).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => switchCurrency(c)}
+                    className={
+                      "rounded-xl border px-3 py-2 text-xs font-semibold transition-colors " +
+                      (currency === c
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-white/10 bg-black/20 text-muted-foreground hover:border-white/25")
+                    }
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+
+              {currency === "USDT" && (
+                <p className="mt-2 text-[11px] text-amber-400/90">
+                  {t("usdtNote")}
+                </p>
+              )}
+
+              <label className="mt-3 block text-xs text-muted-foreground">
+                {t("amountLabel")}（{currency}）
               </label>
               <input
                 type="number"
                 min="0"
-                step="0.001"
+                step={currency === "ETH" ? "0.001" : "1"}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
@@ -146,7 +213,7 @@ export default function DonatePage() {
                 className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-background disabled:opacity-60"
               >
                 {isSending && <Loader2 className="size-4 animate-spin" />}
-                {isSending ? t("donating") : t("donateNow")}
+                {isSending ? t("donating") : `${t("donateNow")}（${currency}）`}
               </button>
             </div>
           )}

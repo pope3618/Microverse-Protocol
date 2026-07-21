@@ -2,21 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { ArrowUpRight, Gift, Sparkles, Users } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { useI18n } from "@/components/language-provider";
-import { useAccount } from "wagmi";
 
 export default function HomePage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { isConnected } = useAccount();
-  const [claimMsg, setClaimMsg] = useState("");
-
-  const handleClaim = () => {
-    setClaimMsg(isConnected ? "暫無可領取收益" : "請先連接錢包");
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -66,14 +58,11 @@ export default function HomePage() {
         <div className="mt-2 flex items-end justify-between">
           <span className="font-display text-2xl font-bold">0.0000</span>
         <button
-          onClick={handleClaim}
+          onClick={() => router.push("/earnings")}
           className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-background transition-opacity hover:opacity-90"
         >
           領取
         </button>
-        {claimMsg && (
-          <p className="mt-2 text-[11px] text-muted-foreground">{claimMsg}</p>
-        )}
         </div>
       </GlassCard>
 

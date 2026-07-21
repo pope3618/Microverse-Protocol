@@ -53,12 +53,33 @@ const dict: Dict = {
   },
   switching: { "zh-Hant": "切換中…", en: "Switching…" },
   switchBtn: { "zh-Hant": "切換網絡", en: "Switch Network" },
-  amountLabel: { "zh-Hant": "捐贈數量（ETH）", en: "Amount (ETH)" },
+  amountLabel: { "zh-Hant": "捐贈數量", en: "Amount" },
+  currencyLabel: { "zh-Hant": "幣種", en: "Currency" },
   donateNow: { "zh-Hant": "立即捐贈", en: "Donate Now" },
   donating: { "zh-Hant": "捐贈中…", en: "Donating…" },
   donateSuccess: { "zh-Hant": "捐贈成功！交易哈希：", en: "Donation sent! Tx hash:" },
   donateFail: { "zh-Hant": "捐贈失敗", en: "Donation failed" },
+  usdtNote: {
+    "zh-Hant": "USDT 為 Sepolia 測試代幣（demo），需錢包內有測試 USDT 才能轉出",
+    en: "USDT is a Sepolia test token (demo); requires test USDT balance to transfer",
+  },
   backHome: { "zh-Hant": "返回首頁", en: "Back to home" },
+  // 領取收益頁
+  claimTitle: { "zh-Hant": "領取收益 / Claim", en: "Claim Earnings" },
+  claimSub: {
+    "zh-Hant": "領取你的動態收益 · 交易在 Sepolia 測試網上鏈",
+    en: "Claim your dynamic earnings · settled on Sepolia testnet",
+  },
+  claimableLabel: { "zh-Hant": "可領取收益", en: "Claimable" },
+  claimNow: { "zh-Hant": "立即領取", en: "Claim Now" },
+  claiming: { "zh-Hant": "領取中…", en: "Claiming…" },
+  claimSuccess: { "zh-Hant": "領取成功！交易哈希：", en: "Claim sent! Tx hash:" },
+  claimFail: { "zh-Hant": "領取失敗", en: "Claim failed" },
+  claimEmpty: { "zh-Hant": "暫無可領取收益", en: "No earnings to claim yet" },
+  claimDemo: {
+    "zh-Hant": "演示：調用 claim() 發起真實鏈上交易（Sepolia 測試網）",
+    en: "Demo: calls claim() as a real on-chain tx (Sepolia testnet)",
+  },
 };
 
 type I18nValue = {
